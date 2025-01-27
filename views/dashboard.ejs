@@ -1,30 +1,70 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
 </head>
 <body>
-    <header>
-        <nav>
-            <a href="/">Home</a>
-            <a href="/login">Login</a>
-            <a href="/dashboard">Dashboard</a>
-        </nav>
-    </header>
+  <header>
+    <nav>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/dashboard">Dashboard</a></li>
+        <li><a href="/logout">Logout</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main>
+    <h1>Dashboard</h1>
+    <div id="map"></div>
+    <h2>Bus Schedule</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Bus</th>
+          <th>Route</th>
+          <th>Schedule</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% buses.forEach(bus => { %>
+          <tr>
+            <td><%= bus.name %></td>
+            <td><%= bus.route %></td>
+            <td><%= bus.schedule %></td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+    <% if (isAdmin) { %>
+      <form action="/update-schedule" method="POST">
+        <h3>Update Schedule</h3>
+        <input type="number" name="id" placeholder="Bus ID" required>
+        <input type="text" name="schedule" placeholder="New Schedule" required>
+        <button type="submit">Update</button>
+      </form>
+    <% } %>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script>
+    const map = L.map("map").setView([19.160334, 77.315097], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+    const socket = io();
+    const markers = {};
 
-    <div class="container">
-        <h1>Welcome, <%= user.username %>!</h1>
-        <p>Bus Location Information:</p>
-        
-        <div id="map"></div> <!-- Map will be rendered here -->
-    </div>
-
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="/js/scripts.js"></script>
+    socket.on("bus-data", (buses) => {
+      buses.forEach((bus) => {
+        if (!markers[bus.id]) {
+          markers[bus.id] = L.marker([bus.latitude, bus.longitude]).addTo(map).bindPopup(bus.name);
+        } else {
+          markers[bus.id].setLatLng([bus.latitude, bus.longitude]);
+        }
+      });
+    });
+  </script>
 </body>
 </html>

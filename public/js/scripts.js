@@ -1,46 +1,48 @@
 const socket = io();
+const map = L.map("map").setView([19.160334, 77.315097], 14);
 
-// Initialize the map
-const map = L.map("map").setView([0, 0], 2);  // Global view by default
-
-// Tile layer for OpenStreetMap
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "Map data &copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors",
+  attribution: "&copy; OpenStreetMap contributors",
 }).addTo(map);
 
-// Custom bus icon
+// Custom bus icon configuration
 const busIcon = L.icon({
-    iconUrl: '/images/bus-icon.png',  // Make sure the bus icon is in the public/images/ folder
-    iconSize: [30, 30],  // Resize the icon
-    iconAnchor: [15, 15],  // Center the icon
-    popupAnchor: [0, -15] // Adjust where the popup appears (if any)
+  iconUrl: "/images/bus-icon.png", // Path to the bus icon
+  iconSize: [40, 40],             // Size of the icon
+  iconAnchor: [20, 20],           // Anchor point of the icon
 });
 
-// Object to track bus markers
-const markers = {};
+const busMarkers = {}; // Object to store markers for buses
 
-// Listen for location updates from the server
-socket.on("receive-location", (data) => {
-    const { id, latitude, longitude, locationName } = data;
+// Add or update markers using the custom icon
+socket.on("bus-data", (buses) => {
+  buses.forEach((bus) => {
+    const { id, latitude, longitude, name, route } = bus;
 
-    // Check if this bus already has a marker
-    if (markers[id]) {
-        // Update existing marker position
-        markers[id].setLatLng([latitude, longitude]);
-        markers[id].bindPopup(locationName || "Unknown location");
+    if (busMarkers[id]) {
+      // Update existing marker position
+      busMarkers[id].setLatLng([latitude, longitude]);
     } else {
-        // Add a new marker if it's a new bus
-        markers[id] = L.marker([latitude, longitude], { icon: busIcon }).addTo(map);
-        markers[id].bindPopup(locationName || "Unknown location");
+      // Create a new marker with the custom bus icon
+      busMarkers[id] = L.marker([latitude, longitude], { icon: busIcon })
+        .addTo(map)
+        .bindPopup(`<b>${name}</b><br>${route}`);
     }
-});
+  });
 
-// Handle user disconnection and remove markers
-socket.on("user-disconnected", (data) => {
-    const { id } = data;
-
-    if (markers[id]) {
-        map.removeLayer(markers[id]);
-        delete markers[id];
-    }
+  // Update table dynamically
+  const tableBody = document.getElementById("bus-table-body");
+  if (tableBody) {
+    tableBody.innerHTML = buses
+      .map(
+        (bus) =>
+          `<tr>
+            <td>${bus.name}</td>
+            <td>${bus.route}</td>
+            <td>${bus.latitude.toFixed(5)}, ${bus.longitude.toFixed(5)}</td>
+            <td>${bus.schedule}</td>
+          </tr>`
+      )
+      .join("");
+  }
 });
